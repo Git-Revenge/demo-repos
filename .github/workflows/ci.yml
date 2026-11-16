@@ -61,8 +61,8 @@ jobs:
           out="$RUNNER_TEMP/out"
           mkdir -p fingerprints
           for r in tidewater tidewater-git3; do
-            git -C "$out/$r" for-each-ref --format='%(refname) %(objectname)' | sort | git hash-object --stdin > "fingerprints/$r"
-            echo "$r: $(cat "fingerprints/$r")"
+            git -C "$out/$r" for-each-ref --format='%(refname) %(objectname)' | LC_ALL=C sort > "fingerprints/$r"
+            echo "$r: $(git hash-object "fingerprints/$r")"
           done
       - uses: actions/upload-artifact@v4
         with:
@@ -82,6 +82,10 @@ jobs:
         run: |
           for r in tidewater tidewater-git3; do
             echo "$r:"
-            for f in fingerprints-*/"$r"; do echo "  $(cat "$f")  ${f%%/*}"; done
-            [ "$(cat fingerprints-*/"$r" | sort -u | wc -l)" = 1 ] || { echo "builds differ"; exit 1; }
+            first=fingerprints-linux-gawk/$r
+            for f in fingerprints-*/"$r"; do
+              echo "  $(git hash-object "$f")  ${f%%/*}"
+              diff "$first" "$f" > /dev/null || { echo "  ${f%%/*} differs from linux-gawk:"; diff "$first" "$f" | head -n 20; failed=1; }
+            done
           done
+          [ -z "${failed:-}" ] || { echo "builds differ"; exit 1; }
