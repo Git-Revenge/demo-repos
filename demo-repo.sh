@@ -693,8 +693,9 @@ function ri(a, b) { return a + int(rnd() * (b - a + 1)) }
 function chance(p) { return rnd() < p }
 function pick(list,   parts, n) { n = split(list, parts, "|"); return parts[ri(1, n)] }
 
-function datablock(s) { return sprintf("data %d\n%s\n", length(s), s) }
-function mop(path, content) { return sprintf("M 100644 inline %s\n", path) datablock(content) }
+# Contents are joined, never passed through sprintf: mawk's sprintf stops at 8 KB.
+function datablock(s) { return "data " length(s) "\n" s "\n" }
+function mop(path, content) { return "M 100644 inline " path "\n" datablock(content) }
 function dop(path) { return sprintf("D %s\n", path) }
 function ident(k, t) { return sprintf("%s <%s> %d %s", pname[k], pmail[k], t, ptz[k]) }
 
@@ -1041,7 +1042,7 @@ function restore(f,   i, p) {
 
 function release(day, t, version,   ops, ch, msg, r, i, p) {
   curversion = version
-  ch = sprintf("## %s - %s\n%s\n", version, dateof(day), notes == "" ? "\n- Small fixes." : notes)
+  ch = "## " version " - " dateof(day) "\n" (notes == "" ? "\n- Small fixes." : notes) "\n"
   mc["CHANGELOG.md"] = "# Changelog\n\n" ch (("CHANGELOG.md" in body_of) ? "\n" body_of["CHANGELOG.md"] : "")
   body_of["CHANGELOG.md"] = ch (("CHANGELOG.md" in body_of) ? "\n" body_of["CHANGELOG.md"] : "")
   addpath("CHANGELOG.md")
