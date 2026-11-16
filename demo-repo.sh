@@ -4,6 +4,10 @@
 # history by a small team.
 #
 #   bash demo-repo.sh [--git3] <folder>
+#   bash demo-repo.sh --version
+#
+# Versions follow semver for what gets built: see README.md and CHANGELOG.md in
+# https://github.com/Git-Revenge/demo-repos.
 #
 # It makes <folder>/tidewater (the repository), <folder>/origin.git (its remote), a linked
 # worktree and two sibling projects, and deletes them first if they exist. Dates and authors
@@ -26,6 +30,7 @@
 # - two sibling projects, for a group on the start page, and a made-up global config.
 set -euo pipefail
 
+version=1.0.0
 script=$(cd "$(dirname "$0")" && pwd)/$(basename "$0")
 
 git3=
@@ -33,7 +38,12 @@ if [ "${1:-}" = --git3 ]; then
   git3=1
   shift
 fi
-out=${1:?usage: demo-repo.sh [--git3] <folder>}
+# After --git3 too, as demo-repo-git3.sh --version passes it.
+if [ "${1:-}" = --version ]; then
+  echo "demo-repo.sh $version"
+  exit 0
+fi
+out=${1:?usage: demo-repo.sh [--git3] <folder> | --version}
 mkdir -p "$out"
 out=$(cd "$out" && pwd)
 # The Git 3.0 build sits beside the other, every name ending in -git3.
@@ -667,7 +677,7 @@ cat > "$out/gitconfig$sfx" <<EOF
 	path = $(win "$out")/work$sfx.gitconfig
 EOF
 
-echo "Built $repo ($(git -C "$repo" rev-list --count --all) commits)"
+echo "Built $repo ($(git -C "$repo" rev-list --count --all) commits, demo-repos $version)"
 exit 0
 
 # The generator: an awk program that generate() reads out of this file. To bash it's a here-doc

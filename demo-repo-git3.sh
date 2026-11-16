@@ -3,6 +3,7 @@
 # refs and a main branch, with git refusing any bare repository it isn't pointed at.
 #
 #   bash demo-repo-git3.sh <folder>
+#   bash demo-repo-git3.sh --version
 #
 # It makes <folder>/tidewater-git3, <folder>/origin-git3.git and the rest, with the same
 # history as demo-repo.sh, so the two can sit side by side. It needs git 2.45 or later, and

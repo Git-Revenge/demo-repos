@@ -7,9 +7,11 @@ Scripts that build **Tidewater**, the made-up repository that [Git Revenge](http
 You need `git`, `bash` and `awk`. On Windows, use Git Bash, which comes with Git for Windows.
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/Git-Revenge/demo-repos/main/demo-repo.sh -o demo-repo.sh
+curl -fsSL https://github.com/Git-Revenge/demo-repos/releases/latest/download/demo-repo.sh -o demo-repo.sh
 bash demo-repo.sh ~/gitrevenge-practice
 ```
+
+That's the latest [release](https://github.com/Git-Revenge/demo-repos/releases). To build exactly what a given release builds, put its tag in the URL in place of `latest/download`, as in `releases/download/v1.0.0/demo-repo.sh`. `bash demo-repo.sh --version` says which you have.
 
 That makes `~/gitrevenge-practice/tidewater` and the things around it, in under a minute:
 
@@ -24,7 +26,8 @@ Each run deletes and rebuilds the folders it made, so run it again for a clean s
 ### As Git 3.0 will make it
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/Git-Revenge/demo-repos/main/demo-repo-git3.sh -o demo-repo-git3.sh
+curl -fsSL https://github.com/Git-Revenge/demo-repos/releases/latest/download/demo-repo.sh -o demo-repo.sh
+curl -fsSL https://github.com/Git-Revenge/demo-repos/releases/latest/download/demo-repo-git3.sh -o demo-repo-git3.sh
 bash demo-repo-git3.sh ~/gitrevenge-practice
 ```
 
@@ -58,13 +61,25 @@ In all, about 1,500 commits, 20 tags and 33 branches.
 
 Dates, authors and the random choices are all fixed. The generator uses its own random numbers rather than awk's `rand()`, so gawk, mawk and macOS's awk make the same commits. CI builds on Linux (gawk and mawk), macOS (its own awk and bash 3.2) and Windows, then checks that every build has exactly the same commit IDs.
 
+## Versions
+
+Releases follow [semantic versioning](https://semver.org/spec/v2.0.0.html), applied to what the scripts build. Someone who pins a release, as Git Revenge's screenshots do, should be able to take any minor or patch release without their walkthroughs or pictures going wrong.
+
+- **Major** (2.0.0): what an earlier release built changes. That includes:
+  - commits that get different IDs;
+  - a branch, tag, commit subject, file, person or folder that's renamed or removed;
+  - the scripts' arguments changing;
+  - a newer git becoming required.
+- **Minor** (1.1.0): only additions. Every commit, branch and tag an earlier release built is still there, unchanged, with the same ID. New branches, tags, sibling repositories or options may appear around them.
+- **Patch** (1.0.1): what's built doesn't change at all, such as a fix that makes another platform or awk build the same commits as the rest, or a clearer error.
+
+[CHANGELOG.md](CHANGELOG.md) lists what each release changed, and [RELEASING.md](RELEASING.md) says how to cut one.
+
 ## Changing it
 
-Git Revenge pins a tag of this repository, and its screenshot script builds Tidewater from that tag. So:
-
-1. Change the scripts here in a pull request. CI must pass, including **Same everywhere**.
-2. If the walkthroughs or screenshot scenes rely on something you changed, such as a commit subject, a branch name or a tag, update them in Git Revenge too.
-3. Tag a release here (`v1.1.0` and so on, annotated), then move Git Revenge's pin to it and retake the screenshots.
+1. Change the scripts in a pull request, with a line in [CHANGELOG.md](CHANGELOG.md) under Unreleased. CI must pass, including **Same everywhere**.
+2. If Git Revenge's walkthroughs or screenshot scenes rely on something you changed, such as a commit subject, a branch name or a tag, the change is a major one: update them in Git Revenge when it moves to that release.
+3. Release it as [RELEASING.md](RELEASING.md) says. Git Revenge then moves its pin (`DEMO_REPOS_TAG` in `docs-site/scripts/screenshots.mjs`) and retakes the screenshots.
 
 ## License
 
