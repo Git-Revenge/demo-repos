@@ -960,7 +960,7 @@ function openpr(k, day, forced,   f, area, kind, p, q, t, noun, prefix) {
   return f
 }
 
-function work(f, day, t,   p, i, msg, ops, subject) {
+function work(f, day, t,   p, i, msg, ops, subject, q) {
   i = fdone[f] < fn[f] ? fdone[f] + 1 : ri(1, fn[f])
   p = ffile[f, i]
   if ((f, p) in fc) fc[f, p] = grow(p, fc[f, p], day)
@@ -968,7 +968,9 @@ function work(f, day, t,   p, i, msg, ops, subject) {
   ops = mop(p, fc[f, p])
   # A test usually changes with its module.
   if (fdone[f] > 0 && i == 1 && fn[f] > 1 && ffile[f, 2] ~ /\.test\.js$/ && chance(0.6)) {
-    fc[f, ffile[f, 2]] = (f, ffile[f, 2]) in fc ? grow(ffile[f, 2], fc[f, ffile[f, 2]], day) : first(ffile[f, 2], day)
+    # Worked out first: mawk makes fc[...] on the left before testing `in` on the right.
+    q = (f, ffile[f, 2]) in fc ? grow(ffile[f, 2], fc[f, ffile[f, 2]], day) : first(ffile[f, 2], day)
+    fc[f, ffile[f, 2]] = q
     ops = ops mop(ffile[f, 2], fc[f, ffile[f, 2]])
   }
   if (fdone[f] == 0) subject = ftitle[f]
@@ -1040,11 +1042,13 @@ function restore(f,   i, p) {
   }
 }
 
-function release(day, t, version,   ops, ch, msg, r, i, p) {
+function release(day, t, version,   ops, ch, msg, r, i, p, older) {
   curversion = version
   ch = "## " version " - " dateof(day) "\n" (notes == "" ? "\n- Small fixes." : notes) "\n"
-  mc["CHANGELOG.md"] = "# Changelog\n\n" ch (("CHANGELOG.md" in body_of) ? "\n" body_of["CHANGELOG.md"] : "")
-  body_of["CHANGELOG.md"] = ch (("CHANGELOG.md" in body_of) ? "\n" body_of["CHANGELOG.md"] : "")
+  # The older sections are read first: mawk makes body_of[...] on the left before testing `in`.
+  older = ("CHANGELOG.md" in body_of) ? "\n" body_of["CHANGELOG.md"] : ""
+  body_of["CHANGELOG.md"] = ch older
+  mc["CHANGELOG.md"] = "# Changelog\n\n" ch older
   addpath("CHANGELOG.md")
   notes = ""
   ops = mop("CHANGELOG.md", mc["CHANGELOG.md"]) mop("package.json", pkgjson(version, 0, "")) mop("package-lock.json", lockjson(version, 0, ""))
