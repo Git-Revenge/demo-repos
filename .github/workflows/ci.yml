@@ -9,6 +9,19 @@ permissions:
   contents: read
 
 jobs:
+  version:
+    name: Version
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: demo-repo.sh and CHANGELOG.md agree
+        run: |
+          script=$(bash demo-repo.sh --version | cut -d' ' -f2)
+          logged=$(grep -m 1 -oE '^## \[[0-9]+\.[0-9]+\.[0-9]+\]' CHANGELOG.md | tr -d '#[] ')
+          echo "demo-repo.sh $script, newest in CHANGELOG.md $logged"
+          [ "$script" = "$logged" ] || { echo "set version= in demo-repo.sh to the newest release in CHANGELOG.md"; exit 1; }
+          grep -q '^## \[Unreleased\]' CHANGELOG.md || { echo "CHANGELOG.md needs an [Unreleased] section"; exit 1; }
+
   build:
     name: Build (${{ matrix.name }})
     strategy:
