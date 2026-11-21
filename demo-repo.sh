@@ -27,6 +27,7 @@
 #   commits, for interactive rebase) and feature/metric-units (conflicts with main);
 # - a remote with a branch that's ahead and branches only it has, a stash, uncommitted
 #   changes, a release folder, a branch whose upstream is gone and a linked worktree;
+# - one person under two addresses (Jessica, on a branch only the remote has), for a mailmap;
 # - two sibling projects, for a group on the start page, and a made-up global config.
 set -euo pipefail
 
@@ -583,6 +584,30 @@ git clone -q $cloneflags "$origin" "$work"
   printf 'node_modules/\n.env\n*.log\n' > .gitignore
   commit tyler "Ignore log files" 30
   git push -q origin main
+  # Jessica fixed a gauge from her own laptop, which commits under her personal address: the
+  # same person under two addresses, for a mailmap to join. Only the remote has the branch,
+  # and it's dated before the last few weeks, so the top of the graph doesn't change.
+  git checkout -q -b fix/gull-point-gauge-drift "$(git rev-list -1 --before=2026-10-01T00:00:00Z origin/main)"
+  export GIT_AUTHOR_NAME="Jessica Nguyen" GIT_AUTHOR_EMAIL="jessica.nguyen@harbourmail.example"
+  export GIT_COMMITTER_NAME="$GIT_AUTHOR_NAME" GIT_COMMITTER_EMAIL="$GIT_AUTHOR_EMAIL"
+  cat > src/tides/drift.js <<'EOF'
+// A gauge that has drifted reads a little high or low all the time. Take the drift off.
+export function corrected(reading, driftCm) {
+  return Math.round((reading - driftCm / 100) * 100) / 100
+}
+EOF
+  git add -A
+  GIT_AUTHOR_DATE="2026-09-28T19:40:00-0800" GIT_COMMITTER_DATE="2026-09-28T19:40:00-0800" git commit -q -m "Correct the drifting gauge at Gull Point"
+  mkdir -p test
+  cat > test/drift.test.js <<'EOF'
+import { corrected } from '../src/tides/drift.js'
+
+console.assert(corrected(2.34, 6) === 2.28, 'a gauge reading 6 cm high')
+console.assert(corrected(2.34, 0) === 2.34, 'a gauge that has not drifted')
+EOF
+  git add -A
+  GIT_AUTHOR_DATE="2026-09-29T08:15:00-0800" GIT_COMMITTER_DATE="2026-09-29T08:15:00-0800" git commit -q -m "Test the gauge correction"
+  git push -q origin fix/gull-point-gauge-drift
 )
 rm -rf "$work"
 git fetch -q origin
