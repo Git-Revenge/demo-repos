@@ -995,7 +995,7 @@ function openpr(k, day, forced,   f, area, kind, p, q, t, noun, prefix) {
   return f
 }
 
-function work(f, day, t,   p, i, msg, ops, subject, q) {
+function work(f, day, t,   p, i, msg, ops, subject, q, co) {
   i = fdone[f] < fn[f] ? fdone[f] + 1 : ri(1, fn[f])
   p = ffile[f, i]
   if ((f, p) in fc) fc[f, p] = grow(p, fc[f, p], day)
@@ -1010,7 +1010,14 @@ function work(f, day, t,   p, i, msg, ops, subject, q) {
   }
   if (fdone[f] == 0) subject = ftitle[f]
   else subject = pick("Address review comments|Cover the edge cases|Rename for clarity|Fix lint|Handle an empty response|Add tests|Tidy up|Update the docs comment|Keep the old behaviour behind a flag|Simplify the loop|Check the input first|wip")
-  if (chance(0.06)) subject = subject "\n\nCo-authored-by: " pname[other(fowner[f], day)] " <" pmail[other(fowner[f], day)] ">"
+  if (chance(0.06)) {
+    # One person, by name and address. The second draw is thrown away: it used to pick the
+    # address, of somebody else as often as not, and keeping it leaves every choice made
+    # after this one as it was.
+    co = other(fowner[f], day)
+    other(fowner[f], day)
+    subject = subject "\n\nCo-authored-by: " pname[co] " <" pmail[co] ">"
+  }
   fsubjects[f] = fsubjects[f] "\n* " (index(subject, "\n") ? substr(subject, 1, index(subject, "\n") - 1) : subject)
   ftip[f] = commit(fowner[f], t, fowner[f], t, subject "\n", ftip[f], "", ops)
   fdone[f]++
