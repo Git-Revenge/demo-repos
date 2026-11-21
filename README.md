@@ -53,7 +53,8 @@ This builds the same history as `tidewater-git3`, `origin-git3.git` and so on, n
 - `feature/offline-cache`, work in progress with *fixup!* and *wip* commits, for interactive rebase;
 - `feature/metric-units`, which conflicts with `main`;
 - a bug after v1.9.0 for bisect to find;
-- a branch whose upstream is gone.
+- a branch whose upstream is gone;
+- one person under two addresses, for a mailmap to join: Jessica Nguyen's two commits on `fix/gull-point-gauge-drift`, which only the remote has, are under her personal address. Tidewater has no `.mailmap`.
 
 In all, about 1,500 commits, 20 tags and 33 branches.
 

@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/2.0.0/),
 
 ## [Unreleased]
 
+### Added
+
+- One person under two addresses, for a mailmap to join: Jessica Nguyen fixes a gauge from her own laptop as `jessica.nguyen@harbourmail.example`, in two commits on `fix/gull-point-gauge-drift`, a branch only the remote has. They're dated late September 2026, before the hand-written weeks, so the top of the graph is as it was. Tidewater has no `.mailmap`; Git Revenge's walkthrough makes one. (Git-Revenge/GitRevenge#840)
+
+### Fixed
+
+- **Breaking:** a `Co-authored-by` trailer in the generated history names one person. Most of them paired one person's name with another's address, such as `Emily Carter <david@tidewater.example>`, so anything that counts people by their trailers saw the same name under several addresses. Every commit's author, date and subject, every branch and tag name and every file are as they were; the trailers' addresses change, and with them the ID of almost every commit.
+
 ## [1.0.0] - 2026-11-16
 
 The first release, moved here from Git Revenge's `docs-site/scripts` (Git-Revenge/GitRevenge#730, Git-Revenge/GitRevenge#736).
