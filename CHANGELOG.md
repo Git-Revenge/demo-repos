@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/2.0.0/),
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-11-21
+
 ### Added
 
 - One person under two addresses, for a mailmap to join: Jessica Nguyen fixes a gauge from her own laptop as `jessica.nguyen@harbourmail.example`, in two commits on `fix/gull-point-gauge-drift`, a branch only the remote has. They're dated late September 2026, before the hand-written weeks, so the top of the graph is as it was. Tidewater has no `.mailmap`; Git Revenge's walkthrough makes one. (Git-Revenge/GitRevenge#840)
@@ -28,5 +30,6 @@ The first release, moved here from Git Revenge's `docs-site/scripts` (Git-Reveng
 - `demo-repo.sh --version`.
 - Every build is the same: gawk, mawk and macOS's awk, bash 3.2 and later, on Linux, macOS and Windows all make identical commits, and CI checks it.
 
-[Unreleased]: https://github.com/Git-Revenge/demo-repos/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/Git-Revenge/demo-repos/compare/v2.0.0...HEAD
+[2.0.0]: https://github.com/Git-Revenge/demo-repos/compare/v1.0.0...v2.0.0
 [1.0.0]: https://github.com/Git-Revenge/demo-repos/releases/tag/v1.0.0
