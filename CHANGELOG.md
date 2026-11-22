@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/2.0.0/),
 
 ## [Unreleased]
 
+## [3.0.0] - 2026-11-22
+
 ### Added
 
 - **Breaking:** what lands on `main` in the generated history carries two trailers: `Changelog`, a label that says what kind of change it is (`added`, `fixed`, `changed` or `none`), and `Reviewed-by`, the person who merged it. That's 338 commits. Eleven of them misspell the key as `Reviewd-by`, and seven name Jessica as `Jess Nguyen` at her usual address, so the history has a key written two ways and one person under two names. Every commit, branch, tag, subject, author and date is as it was; the messages are longer, so the commits have new IDs.
@@ -35,6 +37,7 @@ The first release, moved here from Git Revenge's `docs-site/scripts` (Git-Reveng
 - `demo-repo.sh --version`.
 - Every build is the same: gawk, mawk and macOS's awk, bash 3.2 and later, on Linux, macOS and Windows all make identical commits, and CI checks it.
 
-[Unreleased]: https://github.com/Git-Revenge/demo-repos/compare/v2.0.0...HEAD
+[Unreleased]: https://github.com/Git-Revenge/demo-repos/compare/v3.0.0...HEAD
+[3.0.0]: https://github.com/Git-Revenge/demo-repos/compare/v2.0.0...v3.0.0
 [2.0.0]: https://github.com/Git-Revenge/demo-repos/compare/v1.0.0...v2.0.0
 [1.0.0]: https://github.com/Git-Revenge/demo-repos/releases/tag/v1.0.0

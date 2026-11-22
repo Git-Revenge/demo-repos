@@ -32,7 +32,7 @@
 # - two sibling projects, for a group on the start page, and a made-up global config.
 set -euo pipefail
 
-version=2.0.0
+version=3.0.0
 script=$(cd "$(dirname "$0")" && pwd)/$(basename "$0")
 
 git3=
