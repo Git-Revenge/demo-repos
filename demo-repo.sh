@@ -20,7 +20,8 @@
 #   and a dependency bot opening pull requests, merging (and sometimes squashing) them, cutting
 #   releases (0.1.0 to 1.7.0, with release branches and patch releases), reverting the odd
 #   merge, and leaving branches behind: stale ones, merged ones nobody deleted, a stack of
-#   three, open bot bumps. About 1,500 commits. The generator is at the end of this file.
+#   three, open bot bumps. About 1,500 commits. What lands on main carries Changelog and
+#   Reviewed-by trailers. The generator is at the end of this file.
 # - The last few weeks, by hand, for the walkthroughs and screenshots: stations from a CSV
 #   file, the station map and wind alerts (v1.8.0, v1.9.0), git notes and trailers, files for
 #   every rendered preview, feature/offline-cache (work in progress with fixup and "wip"
@@ -212,7 +213,10 @@ export const stations = rows.map((row) => {
   return { id, name, lat: Number(lat), lon: Number(lon), elevation: Number(elevation) }
 })
 EOF
-commit marcus "Read stations from data/stations.csv"
+commit marcus "Read stations from data/stations.csv
+
+Changelog: added
+Reviewed-by: Sarah Mitchell <sarah@tidewater.example>"
 
 cat > src/readings.js <<'EOF'
 import { stations } from './stations.js'
@@ -259,7 +263,10 @@ cat > public/index.html <<'EOF'
 <main id="map"></main>
 <script type="module" src="map.js"></script>
 EOF
-commit tyler "Add a page for the station map"
+commit tyler "Add a page for the station map
+
+Changelog: added
+Reviewed-by: Emily Carter <emily@tidewater.example>"
 cat > public/map.js <<'EOF'
 const res = await fetch('/api/readings')
 const stations = await res.json()
@@ -349,7 +356,10 @@ export function alerts(readings) {
   return readings.filter((r) => r.wind >= limit).map((r) => ({ id: r.id, message: `Gale warning at ${r.name}` }))
 }
 EOF
-commit sarah "Raise an alert when wind passes the configured limit"
+commit sarah "Raise an alert when wind passes the configured limit
+
+Changelog: added
+Reviewed-by: Marcus Johnson <marcus@tidewater.example>"
 cat > docs/alerts.mmd <<'EOF'
 flowchart LR
   feed[Station feed] --> readings[readings.js]
@@ -379,6 +389,7 @@ commit marcus "Predict tide height from harmonic constants
 The four largest constituents (M2, S2, N2, K1) get within 10 cm at Harbour Light,
 which is good enough for the dashboard.
 
+Changelog: added
 Co-authored-by: Sarah Mitchell <sarah@tidewater.example>
 Closes: #14"
 git notes add -m "Checked against the harbour authority's printed tables for August: worst error 9 cm."
@@ -467,9 +478,15 @@ tag v1.9.0 "Tidewater 1.9.0: the station map and wind alerts"
 
 # ── Fixes and polish ───────────────────────────────────────────────────────────────────
 sed -i.bak 's/timeout_s: 5/timeout_s: 10/' config.yaml && rm config.yaml.bak
-commit tyler "Give the feed more time on a slow connection"
+commit tyler "Give the feed more time on a slow connection
+
+Changelog: fixed
+Reviewed-by: Emily Carter <emily@tidewater.example>"
 printf 'BRK,Breakwater,50.3590,-4.1611,6\n' >> data/stations.csv
-commit sarah "Add the Breakwater station"
+commit sarah "Add the Breakwater station
+
+Changelog: added
+Reviewed-by: Tyler Brooks <tyler@tidewater.example>"
 cat > src/feed.js <<'EOF'
 const FEED = process.env.FEED_URL ?? 'https://feed.tidewater.example'
 
@@ -481,7 +498,10 @@ export async function fetchStation(id) {
   return { wind: wind_kmh, temp: temp_c, pressure: pressure_hpa }
 }
 EOF
-commit marcus "Time out a station that stops answering"
+commit marcus "Time out a station that stops answering
+
+Changelog: fixed
+Reviewed-by: Sarah Mitchell <sarah@tidewater.example>"
 
 # Branches cut from here change feed.js too: metric-units's edit conflicts with the next one
 # on main.
@@ -497,10 +517,16 @@ export async function fetchStation(id) {
   return { wind: Math.round(wind_kmh / 1.852), temp: temp_c, pressure: pressure_hpa }
 }
 EOF
-commit emily "Show wind in knots"
+commit emily "Show wind in knots
+
+Changelog: changed
+Reviewed-by: Marcus Johnson <marcus@tidewater.example>"
 sed -i.bak 's/wind_kmh: 60/wind_knots: 32/' config.yaml && rm config.yaml.bak
 sed -i.bak 's/wind_kmh/wind_knots/' src/alerts.js && rm src/alerts.js.bak
-commit emily "Set the alert limit in knots too"
+commit emily "Set the alert limit in knots too
+
+Changelog: changed
+Reviewed-by: Tyler Brooks <tyler@tidewater.example>"
 
 git checkout -q feature/metric-units
 cat > src/feed.js <<'EOF'
@@ -1032,7 +1058,22 @@ function work(f, day, t,   p, i, msg, ops, subject, q, co) {
 
 function release_files(f,   i) { for (i = 1; i <= fn[f]; i++) delete lock[ffile[f, i]] }
 
-function land(f, day, t,   k, i, p, ops, msg, squash, undo, revert, body) {
+# What lands on main says what kind of change it is and who reviewed it, as trailers: a label
+# worth filtering by, and people. Both are worked out from what's already been decided, with
+# no new draw, so every choice made after this is the one it was.
+#
+# Three in a hundred or so are written "Reviewd-by", as fingers do, and Jessica is "Jess" to
+# whoever types her name in a hurry: one key spelled two ways, and one person under two names.
+function changelog(kind) {
+  return kind == "feature" ? "added" : kind == "fix" ? "fixed" : kind == "refactor" ? "changed" : "none"
+}
+function reviewed(k, n,   key, name) {
+  key = n % 37 == 11 ? "Reviewd-by" : "Reviewed-by"
+  name = (pname[k] == "Jessica Nguyen" && n % 4 == 1) ? "Jess Nguyen" : pname[k]
+  return key ": " name " <" pmail[k] ">"
+}
+
+function land(f, day, t,   k, i, p, ops, msg, squash, undo, revert, body, trailers) {
   k = other(fowner[f], day)
   ops = ""
   undo = ""
@@ -1048,11 +1089,12 @@ function land(f, day, t,   k, i, p, ops, msg, squash, undo, revert, body) {
   squash = chance(fdone[f] > 1 ? 0.25 : 0.5)
   body = ftitle[f]
   if (fkind[f] == "fix" && pr > 20 && chance(0.5)) body = body "\n\nCloses #" ri(1, pr - 1)
+  trailers = "Changelog: " changelog(fkind[f]) "\n" reviewed(k, fpr[f])
   if (squash) {
-    msg = sprintf("%s (#%d)\n%s\n", ftitle[f], fpr[f], fdone[f] > 1 ? "\n" substr(fsubjects[f], 2) "\n" : "")
+    msg = sprintf("%s (#%d)\n%s\n%s\n", ftitle[f], fpr[f], fdone[f] > 1 ? "\n" substr(fsubjects[f], 2) "\n" : "", trailers)
     maintip = commit(fowner[f], t, k, t, msg, maintip, "", ops)
   } else {
-    msg = sprintf("Merge pull request #%d from tidewater/%s\n\n%s\n", fpr[f], fbranch[f], body)
+    msg = sprintf("Merge pull request #%d from tidewater/%s\n\n%s\n\n%s\n", fpr[f], fbranch[f], body, trailers)
     maintip = commit(k, t, k, t, msg, maintip, ftip[f], ops)
   }
   fstate[f] = squash ? "squashed" : "merged"

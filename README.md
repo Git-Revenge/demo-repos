@@ -39,7 +39,7 @@ This builds the same history as `tidewater-git3`, `origin-git3.git` and so on, n
 
 - **People:** six (Emily Carter, Marcus Johnson, Sarah Mitchell, Tyler Brooks, Jessica Nguyen, David Ramirez), plus a contractor who leaves in June and a dependency bot.
 - **Pull requests:** about 450. Most are merged; some are squashed, and a few are reverted.
-- **Trailers:** `Closes #n` and `Co-authored-by`.
+- **Trailers:** `Closes #n` and `Co-authored-by`, and on what lands on main, `Changelog` (added, fixed, changed or none) and `Reviewed-by`. A few are misspelled `Reviewd-by`, and Jessica is sometimes "Jess Nguyen" at the same address: a key written two ways and a person under two names, for a tool that reads trailers to ask about.
 - **Releases:** monthly from v0.1.0, then every eight weeks from v1.0.0 to v1.7.0, with `release/v1.x` branches and their patch releases.
 - **Other changes:** weekly dependency bumps and monthly data archives.
 - **Branches left behind:** in-progress work, stale branches, merged branches nobody deleted, open bot bumps, a stack of three (`feature/export-api` → `feature/export-csv` → `feature/export-ui`), and branches only the remote has.
