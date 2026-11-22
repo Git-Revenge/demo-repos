@@ -20,7 +20,8 @@
 #   and a dependency bot opening pull requests, merging (and sometimes squashing) them, cutting
 #   releases (0.1.0 to 1.7.0, with release branches and patch releases), reverting the odd
 #   merge, and leaving branches behind: stale ones, merged ones nobody deleted, a stack of
-#   three, open bot bumps. About 1,500 commits. The generator is at the end of this file.
+#   three, open bot bumps. About 1,500 commits. What lands on main carries Changelog and
+#   Reviewed-by trailers. The generator is at the end of this file.
 # - The last few weeks, by hand, for the walkthroughs and screenshots: stations from a CSV
 #   file, the station map and wind alerts (v1.8.0, v1.9.0), git notes and trailers, files for
 #   every rendered preview, feature/offline-cache (work in progress with fixup and "wip"
@@ -1032,7 +1033,22 @@ function work(f, day, t,   p, i, msg, ops, subject, q, co) {
 
 function release_files(f,   i) { for (i = 1; i <= fn[f]; i++) delete lock[ffile[f, i]] }
 
-function land(f, day, t,   k, i, p, ops, msg, squash, undo, revert, body) {
+# What lands on main says what kind of change it is and who reviewed it, as trailers: a label
+# worth filtering by, and people. Both are worked out from what's already been decided, with
+# no new draw, so every choice made after this is the one it was.
+#
+# Three in a hundred or so are written "Reviewd-by", as fingers do, and Jessica is "Jess" to
+# whoever types her name in a hurry: one key spelled two ways, and one person under two names.
+function changelog(kind) {
+  return kind == "feature" ? "added" : kind == "fix" ? "fixed" : kind == "refactor" ? "changed" : "none"
+}
+function reviewed(k, n,   key, name) {
+  key = n % 37 == 11 ? "Reviewd-by" : "Reviewed-by"
+  name = (pname[k] == "Jessica Nguyen" && n % 4 == 1) ? "Jess Nguyen" : pname[k]
+  return key ": " name " <" pmail[k] ">"
+}
+
+function land(f, day, t,   k, i, p, ops, msg, squash, undo, revert, body, trailers) {
   k = other(fowner[f], day)
   ops = ""
   undo = ""
@@ -1048,11 +1064,12 @@ function land(f, day, t,   k, i, p, ops, msg, squash, undo, revert, body) {
   squash = chance(fdone[f] > 1 ? 0.25 : 0.5)
   body = ftitle[f]
   if (fkind[f] == "fix" && pr > 20 && chance(0.5)) body = body "\n\nCloses #" ri(1, pr - 1)
+  trailers = "Changelog: " changelog(fkind[f]) "\n" reviewed(k, fpr[f])
   if (squash) {
-    msg = sprintf("%s (#%d)\n%s\n", ftitle[f], fpr[f], fdone[f] > 1 ? "\n" substr(fsubjects[f], 2) "\n" : "")
+    msg = sprintf("%s (#%d)\n%s\n%s\n", ftitle[f], fpr[f], fdone[f] > 1 ? "\n" substr(fsubjects[f], 2) "\n" : "", trailers)
     maintip = commit(fowner[f], t, k, t, msg, maintip, "", ops)
   } else {
-    msg = sprintf("Merge pull request #%d from tidewater/%s\n\n%s\n", fpr[f], fbranch[f], body)
+    msg = sprintf("Merge pull request #%d from tidewater/%s\n\n%s\n\n%s\n", fpr[f], fbranch[f], body, trailers)
     maintip = commit(k, t, k, t, msg, maintip, ftip[f], ops)
   }
   fstate[f] = squash ? "squashed" : "merged"

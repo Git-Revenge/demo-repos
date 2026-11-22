@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/2.0.0/),
 
 ## [Unreleased]
 
+### Added
+
+- **Breaking:** what lands on `main` in the generated history carries two trailers: `Changelog`, a label that says what kind of change it is (`added`, `fixed`, `changed` or `none`), and `Reviewed-by`, the person who merged it. That's 338 commits. Eleven of them misspell the key as `Reviewd-by`, and seven name Jessica as `Jess Nguyen` at her usual address, so the history has a key written two ways and one person under two names. Every commit, branch, tag, subject, author and date is as it was; the messages are longer, so the commits have new IDs.
+
 ## [2.0.0] - 2026-11-21
 
 ### Added
