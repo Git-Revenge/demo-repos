@@ -26,6 +26,9 @@
 #   file, the station map and wind alerts (v1.8.0, v1.9.0), git notes and trailers, files for
 #   every rendered preview, feature/offline-cache (work in progress with fixup and "wip"
 #   commits, for interactive rebase) and feature/metric-units (conflicts with main);
+# - feature/station-checks, a file in each of ten languages added and then changed, for a
+#   diff that reads the code, and feature/reading-times, whose conflicts with main can mostly
+#   be combined;
 # - a remote with a branch that's ahead and branches only it has, a stash, uncommitted
 #   changes, a release folder, a branch whose upstream is gone and a linked worktree;
 # - one person under two addresses (Jessica, on a branch only the remote has), for a mailmap;
@@ -77,7 +80,8 @@ done
 rm -rf "$repo" "$origin" "$hotfix"
 
 day=0
-base=$(date -d 2026-10-05T09:00:00 +%s 2>/dev/null || date -j -f %Y-%m-%dT%H:%M:%S 2026-10-05T09:00:00 +%s)
+# In UTC, or a build away from UTC would date the last few weeks by its own clock.
+base=$(date -u -d 2026-10-05T09:00:00 +%s 2>/dev/null || date -u -j -f %Y-%m-%dT%H:%M:%S 2026-10-05T09:00:00 +%s)
 
 who() {
   case $1 in
@@ -85,6 +89,8 @@ who() {
     marcus) export GIT_AUTHOR_NAME="Marcus Johnson" GIT_AUTHOR_EMAIL="marcus@tidewater.example" ;;
     sarah) export GIT_AUTHOR_NAME="Sarah Mitchell" GIT_AUTHOR_EMAIL="sarah@tidewater.example" ;;
     tyler) export GIT_AUTHOR_NAME="Tyler Brooks" GIT_AUTHOR_EMAIL="tyler@tidewater.example" ;;
+    jessica) export GIT_AUTHOR_NAME="Jessica Nguyen" GIT_AUTHOR_EMAIL="jessica@tidewater.example" ;;
+    david) export GIT_AUTHOR_NAME="David Ramirez" GIT_AUTHOR_EMAIL="david@tidewater.example" ;;
   esac
   export GIT_COMMITTER_NAME="$GIT_AUTHOR_NAME" GIT_COMMITTER_EMAIL="$GIT_AUTHOR_EMAIL"
 }
@@ -549,6 +555,591 @@ Every reading is in SI units: wind in m/s, temperature in °C, pressure in hPa.
 EOF
 commit tyler "Document the units"
 git checkout -q main
+
+# ── Two branches dated among the commits above ─────────────────────────────────────────
+# Added in 3.1.0, so every commit before keeps its ID. They're dated before the newest work,
+# so the top of the graph doesn't change. commit() counts hours from 5 October 09:00 UTC in
+# day; set it for each branch, then put it back.
+since=$day
+
+# A nightly check of every station, in a language a file at a time: each file is added, then
+# changed once in a commit of its own, with renames, moved code, code moved into new
+# structure and formatting, for a diff that reads the code to show. Cut from the last of the
+# generated history (20 September), and dated before the last few weeks.
+git checkout -q -b feature/station-checks "$(git rev-list -1 --before=2026-10-01T00:00:00Z main)"
+mkdir -p db scripts .github/workflows public data
+cat > scripts/check_stations.py <<'EOF'
+"""Check the latest reading from every station, and record anything out of range."""
+import json
+import sqlite3
+import sys
+from urllib.request import urlopen
+
+FEED = "https://feed.tidewater.example"
+
+
+def fetch(station):
+    with urlopen(f"{FEED}/stations/{station}/latest", timeout=10) as res:
+        return json.load(res)
+
+
+def problems(reading, limits):
+    found = []
+    if reading["wind_kmh"] > limits["wind_kmh"]:
+        found.append(f"wind {reading['wind_kmh']} km/h, over {limits['wind_kmh']}")
+    if reading["pressure_hpa"] < limits["pressure_hpa"]:
+        found.append(f"pressure {reading['pressure_hpa']} hPa, under {limits['pressure_hpa']}")
+    return found
+
+
+def main(db_path, stations):
+    with open("data/checks.json") as f:
+        limits = json.load(f)
+    db = sqlite3.connect(db_path)
+    for station in stations:
+        reading = fetch(station)
+        for problem in problems(reading, limits[station]):
+            db.execute("INSERT INTO checks (station, problem) VALUES (?, ?)", (station, problem))
+    db.commit()
+
+
+if __name__ == "__main__":
+    main(sys.argv[1], sys.argv[2:])
+EOF
+cat > db/checks.sql <<'EOF'
+-- What the nightly check found, a row for each problem.
+CREATE TABLE checks (
+  id INTEGER PRIMARY KEY,
+  station TEXT NOT NULL,
+  problem TEXT NOT NULL,
+  checked_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX checks_by_station ON checks (station);
+
+CREATE VIEW latest_checks AS
+SELECT station, problem, max(checked_at) AS checked_at
+FROM checks
+GROUP BY station;
+EOF
+cat > scripts/nightly.sh <<'EOF'
+#!/usr/bin/env bash
+# Runs the station check every night and keeps a log of what it found.
+set -euo pipefail
+
+db=${CHECKS_DB:-$HOME/tidewater/checks.db}
+log=$HOME/tidewater/logs/nightly-$(date -u +%F).log
+stations='HBR GUL SAL CRG BRK'
+
+mkdir -p $(dirname $log)
+python3 scripts/check_stations.py $db $stations >> $log 2>&1
+echo "checked $(echo $stations | wc -w) stations" >> $log
+EOF
+cat > scripts/nightly.ps1 <<'EOF'
+# Runs the station check on Windows, for anyone working there. It does what nightly.sh does.
+param(
+  [string]$Db = "$env:USERPROFILE\tidewater\checks.db"
+)
+$ErrorActionPreference = 'Stop'
+$stations = 'HBR', 'GUL', 'SAL', 'CRG', 'BRK'
+$log = join-path $env:USERPROFILE "tidewater\logs\nightly-$(get-date -asutc -format yyyy-MM-dd).log"
+
+new-item -itemtype directory -force (split-path $log) | out-null
+python scripts/check_stations.py $Db @stations *>> $log
+"checked $($stations.Count) stations" | add-content $log
+EOF
+cat > .github/workflows/nightly.yml <<'EOF'
+name: Nightly check
+on:
+  schedule:
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check every station
+        run: bash scripts/nightly.sh
+        env:
+          CHECKS_DB: checks.db
+      - name: Keep the log
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-log
+          path: ~/tidewater/logs/
+EOF
+cat > data/checks.json <<'EOF'
+{
+  "HBR": { "wind_kmh": 70, "pressure_hpa": 960 },
+  "GUL": { "wind_kmh": 75, "pressure_hpa": 960 },
+  "SAL": { "wind_kmh": 70, "pressure_hpa": 960 },
+  "CRG": { "wind_kmh": 90, "pressure_hpa": 950 },
+  "BRK": { "wind_kmh": 80, "pressure_hpa": 955 }
+}
+EOF
+cat > Dockerfile.checks <<'EOF'
+# The nightly check, run by the scheduler on the deploy host.
+FROM python:3.12-slim
+WORKDIR /check
+COPY scripts/check_stations.py scripts/nightly.sh ./scripts/
+COPY data/checks.json ./data/
+CMD ["bash", "scripts/nightly.sh"]
+EOF
+day=-349
+commit david "Add a nightly check of every station"
+cat > public/checks.html <<'EOF'
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Station checks</title>
+<link rel="stylesheet" href="checks.css">
+</head>
+<body>
+<header>
+  <h1>Station checks</h1>
+</header>
+<ul id="checks"></ul>
+<p>Updated <span id="updated">never</span></p>
+<nav>
+  <a href="index.html">Map</a>
+  <a href="about.html">About</a>
+</nav>
+<script type="module" src="checks.js"></script>
+</body>
+</html>
+EOF
+cat > public/checks.css <<'EOF'
+body {
+  margin: 0;
+  font: 15px system-ui, sans-serif;
+  color: #1d2a33;
+}
+
+header {
+  padding: 16px 24px;
+  background: #12395a;
+  color: #f6f1e7;
+}
+
+#checks {
+  list-style: none;
+  margin:0;
+  padding: 12px 24px;
+}
+
+.pass {
+  color: #2e7d32;
+}
+
+.fail {
+  color: #cb0162;
+  font-weight: 600;
+  border-left: 3px solid currentColor;
+  padding-left: 8px;
+}
+
+nav a {
+  color: inherit;
+  margin-right: 12px;
+}
+EOF
+cat > public/checks.js <<'EOF'
+// The check page: the latest result for every station, from /api/checks.
+const list = document.querySelector('#checks')
+
+function row(check) {
+  const li = document.createElement('li')
+  li.className = check.ok ? 'pass' : 'fail'
+  li.textContent = `${check.station}: ${check.message}`
+  return li
+}
+
+function age(at) {
+  const minutes = Math.round((Date.now() - new Date(at)) / 60_000)
+  return minutes < 60 ? `${minutes} min ago` : `${Math.round(minutes / 60)} h ago`
+}
+
+async function load() {
+  const res = await fetch('/api/checks')
+  const checks = await res.json()
+  checks.sort((a, b) => b.ok - a.ok)
+  list.replaceChildren(...checks.map(row))
+  document.querySelector('#updated').textContent = age(checks[0].at)
+}
+
+load()
+EOF
+commit tyler "Show the latest checks on a page" 21
+cat > docs/checks.md <<'EOF'
+# The nightly check
+
+Every night at 02:00 UTC a job reads the latest reading from each station and checks it against the limits in `data/checks.json`. Anything out of range is written to the `checks` table, and the check page shows the newest result for each station.
+
+## What it checks
+
+* Wind over the station's limit
+* Pressure under the station's limit
+
+## Limits
+
+| Station | Wind (km/h) | Pressure (hPa) |
+|---|---|---|
+| Harbour Light | 70 | 960 |
+| Craig Head | 90 | 950 |
+
+## Running it yourself
+
+```sh
+bash scripts/nightly.sh
+```
+EOF
+commit sarah "Explain the nightly check" 24
+
+cat > scripts/check_stations.py <<'EOF'
+"""Check the latest reading from every station, and record anything out of range."""
+import json
+import sqlite3
+import sys
+from urllib.request import urlopen
+
+FEED = "https://feed.tidewater.example"
+
+
+def latest_reading(station):
+    with urlopen(f"{FEED}/stations/{station}/latest", timeout=10) as res:
+        return json.load(res)
+
+
+def problems(reading, limits):
+    found = []
+    if reading["wind_kmh"] > limits["wind_kmh"]:
+        found.append(f"wind {reading['wind_kmh']} km/h, over {limits['wind_kmh']}")
+    if reading["pressure_hpa"] < limits["pressure_hpa"]:
+        found.append(f"pressure {reading['pressure_hpa']} hPa, under {limits['pressure_hpa']}")
+    return found
+
+
+def main(db_path, stations):
+    with open("data/checks.json") as f:
+        limits = json.load(f)
+    db = sqlite3.connect(db_path)
+    for station in stations:
+        try:
+            reading = latest_reading(station)
+            for problem in problems(reading, limits[station]):
+                db.execute("INSERT INTO checks (station, problem) VALUES (?, ?)", (station, problem))
+        except OSError:
+            db.execute("INSERT INTO checks (station, problem) VALUES (?, ?)", (station, "no answer"))
+    db.commit()
+
+
+if __name__ == "__main__":
+    main(sys.argv[1], sys.argv[2:])
+EOF
+commit jessica "Record a station that doesn't answer, and say what fetch fetches" 22
+cat > db/checks.sql <<'EOF'
+-- What the nightly check found, a row for each problem. A week of it is kept.
+CREATE TABLE checks (
+  id INTEGER PRIMARY KEY,
+  checked_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  station TEXT NOT NULL,
+  problem TEXT NOT NULL
+);
+
+CREATE INDEX checks_by_station ON checks (station, checked_at);
+
+CREATE VIEW latest_checks AS
+  SELECT station, problem, max(checked_at) AS checked_at
+  FROM checks
+  GROUP BY station;
+
+CREATE TRIGGER keep_a_week AFTER INSERT ON checks
+BEGIN
+  DELETE FROM checks WHERE checked_at < datetime('now', '-7 days');
+END;
+EOF
+commit david "Keep a week of check results" 6
+cat > scripts/nightly.sh <<'EOF'
+#!/usr/bin/env bash
+# Runs the station check every night and keeps a log of what it found.
+set -euo pipefail
+
+db=${CHECKS_DB:-$HOME/tidewater/checks.db}
+log=$HOME/tidewater/logs/nightly-$(date -u +%F).log
+stations="HBR GUL SAL CRG BRK"
+
+mkdir -p $(dirname $log)
+if curl -fsS --max-time 10 https://feed.tidewater.example/health > /dev/null; then
+  python3 scripts/check_stations.py $db $stations >> $log 2>&1
+  echo "checked $(echo $stations | wc -w) stations" >> $log
+else
+  echo "the feed is down; nothing checked" >> $log
+fi
+EOF
+commit david "Skip the check while the feed is down" 18
+cat > scripts/nightly.ps1 <<'EOF'
+# Runs the station check on Windows, for anyone working there. It does what nightly.sh does.
+param(
+  [string]$Db = "$env:USERPROFILE\tidewater\checks.db"
+)
+$ErrorActionPreference = 'Stop'
+$stations = 'HBR', 'GUL', 'SAL', 'CRG', 'BRK'
+$logFile = Join-Path $env:USERPROFILE "tidewater\logs\nightly-$(Get-Date -AsUTC -Format yyyy-MM-dd).log"
+
+New-Item -ItemType Directory -Force (Split-Path $logFile) | Out-Null
+python scripts/check_stations.py $Db @stations *>> $logFile
+"checked $($stations.Count) stations" | Add-Content $logFile
+EOF
+commit emily "Spell the Windows script's cmdlets as PowerShell does" 4
+cat > .github/workflows/nightly.yml <<'EOF'
+name: Nightly check
+on:
+  schedule:
+    - cron: "30 1 * * *"
+  workflow_dispatch:
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Check every station
+        env:
+          CHECKS_DB: checks.db
+        run: bash scripts/nightly.sh
+      - name: Keep the log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-log
+          path: ~/tidewater/logs/
+          retention-days: 14
+EOF
+commit david "Run the nightly check at 01:30 UTC, and keep its log when it fails" 72
+cat > public/checks.html <<'EOF'
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Station checks</title>
+<link rel="stylesheet" href="checks.css">
+</head>
+<body>
+<header>
+  <h1>Station checks</h1>
+  <nav>
+    <a href="index.html">Map</a>
+    <a href="about.html">About</a>
+    <a href="checks.html" aria-current="page">Checks</a>
+  </nav>
+</header>
+<main>
+  <ul id="checks"></ul>
+  <p>Updated <span id="updated">never</span></p>
+</main>
+<script src="checks.js" type="module"></script>
+</body>
+</html>
+EOF
+commit tyler "Put the check page's links in its header" 20
+cat > public/checks.css <<'EOF'
+body {
+  margin: 0;
+  font: 15px system-ui, sans-serif;
+  color: #1d2a33;
+}
+
+header {
+  padding: 16px 24px;
+  background: #12395a;
+  color: #f6f1e7;
+}
+
+#checks {
+  list-style: none;
+  margin: 0;
+  padding: 12px 24px;
+}
+
+.fail {
+  color: #b00051;
+  font-weight: 600;
+  border-left: 4px solid currentColor;
+  padding-left: 8px;
+}
+
+.pass {
+  color: #2e7d32;
+}
+
+nav a {
+  color: inherit;
+  margin-right: 12px;
+}
+EOF
+commit tyler "Make the failing stations stand out more" 6
+sed -i.bak -e 's/list/results/g; s/(row)/(checkItem)/; s/function row/function checkItem/; s/b\.ok - a\.ok/a.ok - b.ok/' public/checks.js && rm public/checks.js.bak
+commit marcus "Put failing stations first, and name things for what they hold" 18
+cat > public/checks.js <<'EOF'
+// The check page: the latest result for every station, from /api/checks.
+const results = document.querySelector('#checks')
+
+function checkItem(check) {
+  const li = document.createElement('li')
+  li.className = check.ok ? 'pass' : 'fail'
+  li.textContent = `${check.station}: ${check.message}`
+  return li
+}
+
+function age(at) {
+  const minutes = Math.round((Date.now() - new Date(at)) / 60_000)
+  if (minutes < 1) return 'just now'
+  return minutes < 60 ? `${minutes} min ago` : `${Math.round(minutes / 60)} h ago`
+}
+
+async function load() {
+  try {
+    const res = await fetch('/api/checks')
+    const checks = await res.json()
+    checks.sort((a, b) => a.ok - b.ok)
+    results.replaceChildren(...checks.map(checkItem))
+    document.querySelector('#updated').textContent = age(checks[0].at)
+  } catch {
+    document.querySelector('#updated').textContent = 'not since the feed went down'
+  }
+}
+
+load()
+setInterval(load, 60_000)
+EOF
+commit marcus "Refresh the check page every minute" 3
+cat > data/checks.json <<'EOF'
+{
+  "HBR": {
+    "wind_kmh": 70,
+    "pressure_hpa": 960
+  },
+  "GUL": {
+    "wind_kmh": 75,
+    "pressure_hpa": 960
+  },
+  "SAL": {
+    "wind_kmh": 70,
+    "pressure_hpa": 960
+  },
+  "CRG": {
+    "wind_kmh": 100,
+    "pressure_hpa": 950
+  },
+  "BRK": {
+    "wind_kmh": 80,
+    "pressure_hpa": 955
+  }
+}
+EOF
+commit jessica "Raise the wind limit at Craig Head, and write the limits out in full" 2
+cat > docs/checks.md <<'EOF'
+# The nightly check
+
+Every night at 01:30 UTC a job reads the latest reading from each station and
+checks it against the limits in `data/checks.json`. Anything out of range is
+written to the `checks` table, and the check page shows the newest result for
+each station.
+
+## What it checks
+
+- Wind over the station's limit
+- Pressure under the station's limit
+- A reading with no time on it
+
+## Limits
+
+| Station       | Wind (km/h) | Pressure (hPa) |
+|---------------|-------------|----------------|
+| Harbour Light | 70          | 960            |
+| Craig Head    | 100         | 950            |
+
+## Running it yourself
+
+```sh
+CHECKS_DB=/tmp/checks.db bash scripts/nightly.sh
+```
+
+On Windows, run `scripts/nightly.ps1` in PowerShell 7.
+EOF
+commit sarah "Rewrite the check guide" 20
+cat > Dockerfile.checks <<'EOF'
+# The nightly check, run by the scheduler on the deploy host.
+FROM python:3.12-slim
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends curl \
+ && rm -rf /var/lib/apt/lists/*
+WORKDIR /check
+COPY data/checks.json ./data/
+COPY scripts/check_stations.py scripts/nightly.sh ./scripts/
+ENV CHECKS_DB=/data/checks.db
+VOLUME /data
+CMD ["bash", "scripts/nightly.sh"]
+EOF
+commit david "Install curl in the check's image, and keep its database in a volume" 22
+
+# Jessica keeps the time of each reading, cut from v1.9.0 before main changed the same lines:
+# merged into main, it stops on conflicts the conflict tool can combine (in src/feed.js and
+# config.yaml's timeout) and one it can't (the wind limit, which main moved to knots).
+git checkout -q -b feature/reading-times v1.9.0
+cat > src/feed.js <<'EOF'
+const FEED = process.env.FEED_URL ?? 'https://feed.tidewater.example'
+
+// Wind in km/h, temperature in °C, pressure in hPa.
+export async function fetchStation(id) {
+  const res = await fetch(`${FEED}/stations/${id}/latest`)
+  if (!res.ok) throw new Error(`feed: ${id}: ${res.status}`)
+  const { wind_kmh, temp_c, pressure_hpa, observed_at } = await res.json()
+  return { wind: wind_kmh, temp: temp_c, pressure: pressure_hpa, at: new Date(observed_at) }
+}
+EOF
+day=296
+commit jessica "Keep the time each reading was taken" 3
+cat > config.yaml <<'EOF'
+server:
+  port: 8080
+feed:
+  url: https://feed.tidewater.example
+  max_age_min: 30
+  timeout_s: 5
+alerts:
+  wind_kmh: 60
+EOF
+cat > src/readings.js <<'EOF'
+import { readFileSync } from 'node:fs'
+import { stations } from './stations.js'
+import { fetchStation } from './feed.js'
+
+const maxAge = Number(/max_age_min:\s*(\d+)/.exec(readFileSync('config.yaml', 'utf8'))[1]) * 60_000
+
+export async function readings() {
+  return Promise.all(
+    stations.map(async (s) => {
+      const r = await fetchStation(s.id)
+      return { ...s, ...r, stale: Date.now() - r.at > maxAge }
+    }),
+  )
+}
+EOF
+commit jessica "Mark a reading stale after half an hour" 12
+sed -i.bak 's/wind_kmh: 60/wind_kmh: 55/' config.yaml && rm config.yaml.bak
+commit jessica "Lower the wind alert to 55 km/h, as the harbour master asked" 3
+git checkout -q main
+day=$since
 
 # ── Work in progress: offline cache, with a messy history to tidy ──────────────────────
 git checkout -q -b feature/offline-cache

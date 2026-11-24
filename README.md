@@ -56,11 +56,20 @@ This builds the same history as `tidewater-git3`, `origin-git3.git` and so on, n
 - a branch whose upstream is gone;
 - one person under two addresses, for a mailmap to join: Jessica Nguyen's two commits on `fix/gull-point-gauge-drift`, which only the remote has, are under her personal address. Tidewater has no `.mailmap`.
 
-In all, about 1,500 commits, 20 tags and 33 branches.
+**Two branches for a diff that reads the code:**
+
+- `feature/station-checks`, a nightly check of every station, in ten languages: Python, SQL, shell, PowerShell, YAML, JSON, HTML, CSS, JavaScript and Markdown, plus a Dockerfile. Each file is added, then changed in a commit of its own, so the same kinds of change can be compared from one language to the next:
+  - renames (`fetch` to `latest_reading`, `$log` to `$logFile`, two in one JavaScript commit);
+  - code wrapped in new structure (a `try`, an `if`, a `<header>`), and a rule or a line moved elsewhere;
+  - formatting: quotes in YAML and shell, PowerShell cmdlets in another case, a Markdown paragraph rewrapped and a table realigned, JSON written out in full;
+  - and a real change beside each, such as a limit raised from 90 to 100.
+- `feature/reading-times`, cut from v1.9.0. Merged into `main`, it stops on conflicts in `src/feed.js` and `config.yaml`. In two of the three places the sides changed different parts of the same lines, so they can be combined. In the third, both changed the wind alert's limit, so someone has to choose.
+
+In all, about 1,500 commits, 20 tags and 35 branches.
 
 ## Same every time
 
-Dates, authors and the random choices are all fixed. The generator uses its own random numbers rather than awk's `rand()`, so gawk, mawk and macOS's awk make the same commits. CI builds on Linux (gawk and mawk), macOS (its own awk and bash 3.2) and Windows, then checks that every build has exactly the same commit IDs.
+Dates, authors and the random choices are all fixed, and dates don't depend on your time zone. The generator uses its own random numbers rather than awk's `rand()`, so gawk, mawk and macOS's awk make the same commits. CI builds on Linux (gawk and mawk), macOS (its own awk and bash 3.2) and Windows, in three time zones, then checks that every build has exactly the same commit IDs.
 
 ## Versions
 

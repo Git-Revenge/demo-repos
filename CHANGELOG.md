@@ -6,6 +6,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/2.0.0/),
 
 ## [Unreleased]
 
+### Added
+
+- `feature/station-checks`, for a diff that reads the code to show from one language to the next. It holds 15 commits by all six people, dated 21 September to 2 October 2026:
+  - a nightly check of every station: a Python script, an SQL table, a shell script and a PowerShell one, a GitHub Actions workflow, a JSON file of limits, an HTML page with its CSS and JavaScript, a Markdown guide and a Dockerfile;
+  - then one commit for each language that changes its file, with renames, code wrapped in new structure or moved, formatting, and a real change beside them.
+
+  It's cut from the last generated commit on `main` and dated before the last few weeks, so the top of the graph is as it was. (Git-Revenge/GitRevenge#941)
+- `feature/reading-times`, three commits by Jessica cut from v1.9.0 and dated 17 and 18 October. Merged into `main`, it stops on conflicts in `src/feed.js` and `config.yaml`:
+  - two places where the sides changed different parts of the same lines, which Git Revenge's conflict tool can combine;
+  - one where both sides changed the wind alert's limit, `wind_knots: 32` on `main` and `wind_kmh: 55` on the branch, which someone has to settle.
+
+  `feature/metric-units`'s conflict is as it was. (Git-Revenge/GitRevenge#946)
+
+Every commit, branch and tag an earlier release built is unchanged.
+
+### Fixed
+
+- A build away from UTC dated the last few weeks by its own clock, so its commits had other IDs than a build in UTC, such as CI's and the docs'. Builds now come out the same in any time zone, and CI builds in three of them. A build in UTC is unchanged.
+
 ## [3.0.0] - 2026-11-22
 
 ### Added

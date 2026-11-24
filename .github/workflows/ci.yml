@@ -28,11 +28,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { name: linux-gawk, os: ubuntu-24.04, awk: gawk, bash: bash }
-          - { name: linux-mawk, os: ubuntu-24.04, awk: mawk, bash: bash }
+          - { name: linux-gawk, os: ubuntu-24.04, awk: gawk, bash: bash, tz: UTC }
+          # Away from UTC too: a build anywhere makes the same commits.
+          - { name: linux-mawk, os: ubuntu-24.04, awk: mawk, bash: bash, tz: Pacific/Auckland }
           # macOS's own awk (the one true awk) and its bash 3.2.
-          - { name: macos, os: macos-latest, awk: /usr/bin/awk, bash: /bin/bash }
-          - { name: windows, os: windows-latest, awk: gawk, bash: bash }
+          - { name: macos, os: macos-latest, awk: /usr/bin/awk, bash: /bin/bash, tz: America/New_York }
+          - { name: windows, os: windows-latest, awk: gawk, bash: bash, tz: UTC }
     runs-on: ${{ matrix.os }}
     defaults:
       run:
@@ -52,10 +53,14 @@ jobs:
           git --version
           awk --version 2>/dev/null | head -n 1 || awk -W version 2>&1 | head -n 1 || true
           ${{ matrix.bash }} --version | head -n 1
-      - name: Build Tidewater
+      - name: Build Tidewater (TZ=${{ matrix.tz }})
         run: ${{ matrix.bash }} demo-repo.sh "$RUNNER_TEMP/out"
+        env:
+          TZ: ${{ matrix.tz }}
       - name: Build Tidewater for Git 3.0
         run: ${{ matrix.bash }} demo-repo-git3.sh "$RUNNER_TEMP/out"
+        env:
+          TZ: ${{ matrix.tz }}
       - name: Check what was built
         run: |
           out="$RUNNER_TEMP/out"
