@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/2.0.0/),
 
 ## [Unreleased]
 
+## [3.1.0] - 2026-11-24
+
 ### Added
 
 - `feature/station-checks`, for a diff that reads the code to show from one language to the next. It holds 15 commits by all six people, dated 21 September to 2 October 2026:
@@ -56,7 +58,8 @@ The first release, moved here from Git Revenge's `docs-site/scripts` (Git-Reveng
 - `demo-repo.sh --version`.
 - Every build is the same: gawk, mawk and macOS's awk, bash 3.2 and later, on Linux, macOS and Windows all make identical commits, and CI checks it.
 
-[Unreleased]: https://github.com/Git-Revenge/demo-repos/compare/v3.0.0...HEAD
+[Unreleased]: https://github.com/Git-Revenge/demo-repos/compare/v3.1.0...HEAD
+[3.1.0]: https://github.com/Git-Revenge/demo-repos/compare/v3.0.0...v3.1.0
 [3.0.0]: https://github.com/Git-Revenge/demo-repos/compare/v2.0.0...v3.0.0
 [2.0.0]: https://github.com/Git-Revenge/demo-repos/compare/v1.0.0...v2.0.0
 [1.0.0]: https://github.com/Git-Revenge/demo-repos/releases/tag/v1.0.0
